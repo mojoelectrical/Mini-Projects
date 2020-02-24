@@ -1,0 +1,309 @@
+Sad:
+#include <Servo.h>
+Servo eyebrow_left;
+Servo eyebrow_right;
+Servo mouth_left;
+Servo mouth_right;
+Servo jaw;
+int pos = 0;
+void setup() {
+eyebrow_left.attach(6);
+mouth_left.attach(8);
+}
+void loop() {
+eyebrow_left.write(115); // 180 - 115
+mouth_left.write(35);
+delay(15);
+}
+
+Happy:
+#include <Servo.h>
+Servo eyebrow_left;
+Servo eyebrow_right;
+Servo mouth_left;
+Servo mouth_right;
+Servo jaw;
+int pos = 0;
+void setup() {
+mouth_right.attach(8);
+jaw.attach(10);
+}
+void loop() {
+mouth_right.write(90); // 90 - 10
+jaw.write(130);// 130 - 90
+delay(15);
+}
+
+Surprised:
+#include <Servo.h>
+Servo eyebrow_left;
+Servo eyebrow_right;
+Servo mouth_left;
+Servo mouth_right;
+Servo jaw;
+int pos = 0;
+void setup() {
+eyebrow_left.attach(6);
+eyebrow_right.attach(7);
+jaw.attach(10);
+}
+void loop() {
+eyebrow_left.write(115); // 115 - 180
+eyebrow_right.write(85); // 85 - 15
+jaw.write(180);// 180 - 90
+delay(15);
+}
+
+Shocked:
+#include <Servo.h>
+Servo eyebrow_left;
+Servo eyebrow_right;
+Servo mouth_left;
+Servo mouth_right;
+Servo jaw;
+int pos = 0;
+void setup() {
+eyebrow_left.attach(6);
+eyebrow_right.attach(7);
+jaw.attach(10);
+}
+void loop() {
+eyebrow_left.write(100); // 115 - 180
+eyebrow_right.write(85); // 85 - 15
+jaw.write(140);// 180 - 90
+delay(15);
+}
+
+Angry:
+#include <Servo.h>
+Servo eyebrow_left;
+Servo eyebrow_right;
+Servo mouth_left;
+Servo mouth_right;
+Servo jaw;
+int pos = 0; 
+void setup() {
+eyebrow_right.attach(7);
+jaw.attach(10);
+}
+void loop() {
+eyebrow_right.write(85); // 85 - 15
+jaw.write(180);// 180 - 90
+delay(15);
+}
+
+/Face tracking and Sound localization/
+Python File:
+
+#!/usr/bin/env python
+import rospy
+import math
+from std_msgs.msg import UInt32, String
+from sensor_msgs.msg import RegionOfInterest
+from hark_msgs.msg import HarkSource
+from hark_msgs.msg import HarkSourceVal
+##from geometry_msgs.msg import Point32.h
+from project.msg import Num
+target_x_offset=70
+target_y_offset=70
+target=RegionOfInterest(0,0,0,0, False)
+hadaf=Num(0,0,0,0)
+image_width=640
+image_height=480
+pan=90
+tilt=90
+d=55 #cm
+S=22500
+detected= False
+def ROIcallback(data):
+ global target
+ global pan
+ global tilt
+ global d
+ global S
+ global detected
+ target = data
+ target_x_offset=data.x_offset - image_width/2 + data.width/2
+ target_y_offset=data.y_offset - image_height/2 + data.height/2
+ #Actual distance from camera
+ if data.width>0:
+ ratio=22500/float(data.width*data.height)
+ d1=d*(math.sqrt(ratio))
+ #if (data.x_offset > image_width/2):
+127
+ # angle=(180/3.1452)*math.asin((data.x_offset - image_width/2)/(float(d1)))
+ #else:
+ # angle =(180/3.1452)*math.asin((-data.x_offset + image_width/2)/(float(d1)))
+ ratio=1
+ #Setup the threshold that will set the acceptable error ratio
+ percent_offset_x = float(target_x_offset) / (float(image_width)/2.0)
+ percent_offset_y = float(target_y_offset) / (float(image_height)/2.0)
+# if face is detected
+ if (data.width*data.height)>1 and (data.width*data.height<150*150):
+ target.do_rectify=True
+
+ if abs(percent_offset_x) > 0.2:
+ if target_x_offset < 0:
+ pan = min(175, pan + 1/ratio)
+ else:
+ pan = max(5, pan - 1/ratio)
+ if abs(percent_offset_y) > 0.2:
+ if target_y_offset > 0:
+ tilt = min(120, tilt + 1/ratio)
+ else:
+ tilt = max(60, tilt - 1/ratio)
+ target.x_offset=tilt
+ target.y_offset=pan
+ hadaf.pan=pan
+ hadaf.tilt=tilt
+ #rospy.loginfo(rospy.get_caller_id() + ' x_offset : %d', data.x_offset)
+ #rospy.loginfo(rospy.get_caller_id() + ' target_offset_x : %d', target_x_offset)
+ #rospy.loginfo(rospy.get_caller_id() + ' target_offset_y : %d', target_y_offset)
+ #rospy.loginfo(rospy.get_caller_id() + ' pan : %d', target.x_offset)
+ #rospy.loginfo(rospy.get_caller_id() + ' tilt : %d', target.y_offset)
+ #rospy.loginfo(rospy.get_caller_id() + ' distance is : %f', d1)
+ #rospy.loginfo(rospy.get_caller_id() + ' angle is : %f', angle)
+ #rate = rospy.Rate(10) # 1hz
+ # rate.sleep()
+def Harkcallback(data):
+ global hadaf
+ if data.src[0].azimuth==0:
+ target.height=90;
+ elif data.src[0].azimuth<0:
+ target.height=90+ abs(data.src[0].azimuth)
+ rospy.loginfo('the azimuth of source 1 is %f ', data.src[0].azimuth)
+ rospy.loginfo('the azimuth of source 1 is %f ', target.height)
+ #rospy.loginfo('the azimuth of hadaf 1 is %f ', target.height)
+ else:
+ target.height=data.src[0].azimuth
+ rospy.loginfo('the azimuth of source 1 is %f ', data.src[0].azimuth)
+
+ 
+128
+#Node will be initialized in this function
+#All subscribtions and publications will be made in this method
+#All call back functions will be called from here
+def test():
+ global detected
+ target.do_rectify=False
+ #initializing node, name it test
+ rospy.init_node('test', anonymous=True)
+ #subscribe to the topic "/roi" of type RegionOfInterest, and call the callback function called "callback"
+ rospy.Subscriber('roi', RegionOfInterest, ROIcallback)
+
+ rospy.Subscriber('HarkSource', HarkSource,Harkcallback)
+ # Publish topic called "/angles" of type RegionOfInterest
+ pub = rospy.Publisher('angles', RegionOfInterest, queue_size=10)
+ #pub_audio = rospy.Publisher('arduino_info', Num, queue_size=10)
+ rate = rospy.Rate(10) # 1hz
+ while not rospy.is_shutdown():
+ #publish object "target" of type RegionOfInterest
+ pub.publish(target)
+ # pub_audio.publish(hadaf)
+ rate.sleep()
+ rospy.spin()
+if __name__ == '__main__':
+ try:
+ test()
+ except rospy.ROSInterruptException:
+ pass
+
+Arduino Code:
+//Note, to make the arduino node function on ros, launch the rosserial.python node
+//then while it is trying to establish the connection through the serial port
+//re-upload the code to arduino
+//it will give u a temporary error
+//[WARN] [WallTime: 1458085906.459094] Serial Port read failure: [Errno 11] Resource temporarily
+unavailable
+129
+//then kill the node
+//then re-upload your code and re-run the rosserial python node
+//it will then run successfully
+//hypothese : we might need to add a certain delay in the serial code
+//that will give the device/computer enough time to establish
+//the connection from the port
+#if (ARDUINO >= 100)
+#include <Arduino.h>
+#else
+#include <WProgram.h>
+#endif
+//include the servo libraries to use servo objects
+#include <Servo.h>
+//include the ros libraries
+//in order to use publishing/subscribing objects and functions
+#include <ros.h>
+//Include the message type RegionOfInterest
+// roi publishes messages called sensor_msgs of type RegionOfInterest
+#include <sensor_msgs/RegionOfInterest.h>
+#include <std_msgs/String.h>
+//create a node object
+ros::NodeHandle nh;
+Servo servox;
+Servo servoy;
+//initialize servo angles
+float pan = 90;
+int counter=0;
+float tilt = 90;
+// include the image width and height
+int image_width=640;
+int image_height=480;
+float relative_displacement;
+float default_displacement=28;//displacement when the bounding box is 150x150
+float target_offset_x;
+float target_offset_y;
+float sound_thresh;
+long Blink;
+//callback function of the servo
+void servo_cb( const sensor_msgs::RegionOfInterest& cmd_msg)
+{
+if(cmd_msg.do_rectify)
+{
+tilt=cmd_msg.x_offset;
+pan=cmd_msg.y_offset;
+servoy.write(tilt);
+servox.write(pan);
+}
+else
+{
+servox.write(cmd_msg.height);
+130
+}
+digitalWrite(13, HIGH-digitalRead(13)); //toggle led
+counter=counter+1;
+}
+void messageCb( const std_msgs::String& expression)
+{
+if ( expression.data=="Happy")
+Serial.print("i am Happy");
+if ( expression.data == "Sad")
+Serial.print("I am Sad");
+if ( expression.data == "Angry")
+Serial.print("I am Angry");
+if ( expression.data == "Surprised")
+Serial.print("I am Surprised");
+if ( expression.data == "Dank")
+Serial.print("I am Dank");
+if ( expression.data == "Fine")
+{
+//write all the servos to 0
+Serial.print("I am Fine");
+}
+}
+//subscribe to the topic roi and call the function servo_cb every loop cycle
+ros::Subscriber<std_msgs::String> sub1("expression", &messageCb );
+ros::Subscriber<sensor_msgs::RegionOfInterest> sub("angles", servo_cb);
+void setup(){
+Serial.begin(57600);
+pinMode(13, OUTPUT);
+delay(100);
+nh.initNode();
+delay(100);
+nh.subscribe(sub);
+nh.subscribe(sub1);
+delay(100);
+servox.attach(9); //attach it to pin 9
+servoy.attach(10);
+}
+void loop(){
+nh.spinOnce();//this will call the callback function
+delay(10);
